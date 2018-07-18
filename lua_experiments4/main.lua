@@ -79,6 +79,8 @@ function love.load()
             end
         end
     end
+
+    
     player = {
         image = love.graphics.newImage("playermin.png"),
         x = 80,
