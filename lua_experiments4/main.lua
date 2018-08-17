@@ -1,10 +1,11 @@
 function love.load()
 
     love.window.setMode(700, 750, {resizable=true, vsync=false, minwidth=400, minheight=300})
+    widthWin, heightWin = love.window.getMode()
     --Load the image
     image = love.graphics.newImage("tile.png")
-    image2 = love.graphics.newImage("toilet-paper-icon(min).png")
-    image3 = love.graphics.newImage("shit.png")
+    image2 = love.graphics.newImage("ring_spritesheet.png")
+    image3 = love.graphics.newImage("enemy.png")
     --We need the full image width and height for creating the quads
     width = image:getWidth()
     height = image:getHeight()
@@ -21,21 +22,15 @@ function love.load()
     -- height = (image_height / 2) - 2
 
     --Create the quads
-    -- quads = {}
-
-    -- for i=0,1 do
-    --     for j=0,2 do
-    --         --The only reason this code is split up in multiple lines
-    --         --is so that it fits the page
-    --         table.insert(quads,
-    --             love.graphics.newQuad(
-    --                 1 + j * (width + 2),
-    --                 1 + i * (height + 2),
-    --                 width, height,
-    --                 image_width, image_height))
-    --     end
-    -- end
-    papercount = 0
+    quads = {}
+	local img2Width, img2Height = image2:getWidth(), image2:getHeight()
+	local spriteDim = img2Width / 8
+	for i=0,8-1 do
+		table.insert(quads, love.graphics.newQuad(i * spriteDim, 0, spriteDim, spriteDim, img2Width, img2Height))
+	end
+    timer = 0
+    timer1 = 0
+    ringcount = 0
     tilemap = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -68,21 +63,31 @@ function love.load()
             end
         end
     end
+    enemys = {}
     for i=2,20,math.random(2,5) do
         for j=3,19,math.random(2,5) do
             if tilemap[i][j] ~= 1 then 
                 tilemap[i][j]= math.random(-2,0)
+                if tilemap[i][j] == -1 then
+                enemy = {
+                    x = j * width,
+                    y = i * height,
+                    speed = 200,
+                    si = i,
+                    sj = j
+                }
+                table.insert(enemys, enemy)
+                end
                 -- if tilemap[i][j] == -1 then
-                --     shitx = j * width
-                --     shity = i * height
+                --     enemyx = j * width
+                --     enemyy = i * height
                 -- -- print(tilemap[i][j])
             end
         end
     end
-
     
     player = {
-        image = love.graphics.newImage("playermin.png"),
+        image = love.graphics.newImage("hedge.png"),
         x = 80,
         y = 80,
         width = image:getWidth(),
@@ -92,6 +97,7 @@ function love.load()
         origin_x = width / 2,
         origin_y = 0
     }
+    print(#enemys)
 end
 
 function love.update(dt)
@@ -109,8 +115,8 @@ function love.update(dt)
                 
 
     --             if tilemap[i+1][j] ~= 1 then
-    --                 shitx = shitx
-    --                 shity = i * height
+    --                 enemyx = enemyx
+    --                 enemyy = i * height
     --                 tilemap[i+1][j] = -1
     --                 break
     --             end
@@ -129,25 +135,96 @@ function love.update(dt)
     --         end
     --     end
     -- end
+    timer = timer + dt * 10
+    timer1 = timer1 + dt
+    if timer1 >= 0.5 then
+        for key, enemy in pairs(enemys) do
+            directions = {false,false,false,false}
+            if tilemap[enemy.si+1][enemy.sj] == 0 then
+                directions[1] = true
+            end
+            if tilemap[enemy.si][enemy.sj+1] == 0 then
+                directions[2] = true
+            end
+            if tilemap[enemy.si-1][enemy.sj] == 0 then
+                directions[3] = true
+            end
+            if tilemap[enemy.si][enemy.sj-1] == 0 then
+                directions[4] = true
+            end
+            -- print(math.floor(timer1))
+        
+            randdir = math.random(1,#directions)
+            print(key, randdir)
+            print(directions[1],directions[2], directions[3], directions[4])
+            currentTile = tilemap[enemy.si][enemy.sj]
+            if directions[randdir] == true then
+                if randdir == 1 then
+                    tilemap[enemy.si][enemy.sj] = 0
+                    enemy.si = enemy.si+1
+                    tilemap[enemy.si][enemy.sj] = -1
+                    elseif randdir == 2 then 
+                        tilemap[enemy.si][enemy.sj] = 0
+                        enemy.sj = enemy.sj+1
+                        tilemap[enemy.si][enemy.sj] = -1
+                        elseif randdir == 3 then 
+                            tilemap[enemy.si][enemy.sj] = 0
+                            enemy.si = enemy.si-1
+                            tilemap[enemy.si][enemy.sj] = -1
+                            elseif randdir == 4 then 
+                                tilemap[enemy.si][enemy.sj] = 0
+                                enemy.sj = enemy.sj-1
+                                tilemap[enemy.si][enemy.sj] = -1
+                end
+
+            
+            end
+            -- print(key .. ":" .. value.x .. "," .. value.y)
+        end
+        timer1 = 0
+    end
     if (distance > 8) then
         if isEmpty(nextXTile, nextYTile) then
                 player.x = player.x + player.speed * cos * dt
                 player.y = player.y + player.speed * sin * dt
         end
-        if isPaper(nextXTile, nextYTile) then
+        if isRing(nextXTile, nextYTile) then
             player.x = player.x + player.speed * cos * dt
             player.y = player.y + player.speed * sin * dt
             tilemap[nextYTile][nextXTile] = 0
-            papercount = papercount + 1
+            ringcount = ringcount + 1
         end
-        if isShit(nextXTile, nextYTile) and love.mouse.isDown(1) and papercount % 2 >= 0 and papercount > 0 then 
+        if isEnemy(nextXTile, nextYTile) and math.ceil(ringcount % 2) >= 0 and ringcount > 0 and ringcount ~= 1 then 
             tilemap[nextYTile][nextXTile] = 0
             player.x = player.x + player.speed * cos * dt
             player.y = player.y + player.speed * sin * dt
-            papercount = papercount - 2
-
+            ringcount = ringcount - 2
+            rings = 0
+            for key, enemy in pairs(enemys) do
+                if enemy.si == nextYTile and enemy.sj == nextXTile then
+                    table.remove(enemys,key)
+                end
+            end
+            for i=math.random(2,15),20,math.random(2,5) do
+                for j=math.random(3,15),19,math.random(2,5) do
+                    if tilemap[i][j] ~= 1 and tilemap[i][j] ~= -1 and tilemap[i][j] ~= -2 then 
+                        rand = math.random(-2,0)
+                        if rand ~= -1 and rand ~= 0 and rings <= 1 then
+                            tilemap[i][j] = rand
+                            rings = rings + 1
+                        end
+                    end
+                end
+            end
+        elseif isEnemy(nextXTile, nextYTile) then
+            love.load()
         end
     end
+    -- if love.keyboard.isDown("space") then 
+    --     for key, enemy in pairs(enemys) do
+    --             table.remove(enemys,key)
+    --     end
+    -- end
 end
 
 function love.draw()
@@ -160,7 +237,7 @@ function love.draw()
             end
             if tile == -2  then
                 --Draw the image with the correct quad
-                love.graphics.draw(image2, j * width, i * height)
+                love.graphics.draw(image2, quads[(math.floor(timer) % 8) + 1], j * width, i * height)
                 -- love.graphics.print(j .. "," .. i, (j * width)+2, (i * height)+2)
             end 
             if tile == -1  then
@@ -171,22 +248,25 @@ function love.draw()
         end
     end
     love.graphics.draw(player.image, player.x , player.y, player.angle+math.pi/2, 1,1, player.origin_x, player.origin_y)
-    love.graphics.print("Paper Count: " .. papercount,10,10)
+    love.graphics.print("Rings Count: " .. ringcount,10,10)
     -- love.graphics.print("y: " .. player.y,10,30)
     -- love.graphics.print("currentXT: " .. currentXTile,10,50)
     -- love.graphics.print("currentYT: " .. currentYTile,10,70)
     -- love.graphics.print("Angle: " .. player.angle,150,10)
+    if #enemys == 0 then 
+        love.graphics.print("Congratulations!", widthWin / 2 - 150, heightWin / 2, 0,3,3)
+    end
 end
 
 function isEmpty(x, y)
     return tilemap[y][x] == 0
 end
 
-function isPaper(x, y)
+function isRing(x, y)
     return tilemap[y][x] == -2
 end
 
-function isShit(x, y)
+function isEnemy(x, y)
     return tilemap[y][x] == -1
 end
 isRepeat = love.keyboard.setKeyRepeat( true )
